@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import IntEnum
 from bitstring import BitStream
 
@@ -118,15 +117,9 @@ class SmothingInterval(IntEnum):
     LOWER_30 = 1
     UNLIMITED = 7
 
-@dataclass
 class GpsRtkHeader:
-    msg_number: Type
-    station_id: int
-    gps_epoch: int
-    synchronous_gnss: bool
-    nr_gps_sat: int
-    divergence_free_smothing: bool
-    smothing_interval = int
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def from_bit_stream(self, stream: BitStream):
         self.msg_number = Type(stream.read('uint:12'))
@@ -138,12 +131,21 @@ class GpsRtkHeader:
         self.smothing_interval = SmothingInterval(stream.read('uint:3'))
 
 
-class ExtendedL1L2Gps(RtcmMessage, msg_type=Type.EXTENDED_L1_L2_GPS):
+class ExtendedL1L2Gps(
+        RtcmMessage, GpsRtkHeader,
+        msg_type=Type.EXTENDED_L1_L2_GPS,
+        ):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def from_buffer(self, buff):
-        raise NotImplementedError
+    def from_buffer(self, buff: bytearray):
+        stream = BitStream(buff)
+        super().from_bit_stream(stream)
+        self.sat_id = stream.read('uint:6')
+        self.l1_code_indicator = stream.read('uint:1')
+        self.l1_pseudorange = stream.read('uint:24')
+        self.l1_phaserange = stream.read('int:20') + self.l1_pseudorange
+        self.lock_time_indicator = stream.read('uint:7')
 
     def to_buffer(self):
         raise NotImplementedError
