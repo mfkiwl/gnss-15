@@ -2,10 +2,23 @@ from enum import IntEnum
 
 
 class Type(IntEnum):
+    EXTENDED_L1_L2_GPS = 1004
+    REFERENCE_STATION_ARP = 1005
+    REFERENCE_STATION_ANTENNA_HEIGHT = 1006
+    ANTENNA_DESCRIPTOR = 1007
+    EXTENDED_L1_L2_GLONASS = 1012
+    SYSTEM_PARAMETERS = 1013
+
     GPS_IONOSPHERIC = 1015
     GPS_GEOMETRIC = 1016
+    GPS_GEOMETRIC_INOSPHERIC = 1017
     GPS_EPHEMERIDES = 1019
     GLONASS_EPHEMERIDES = 1020
+
+    UNICODE_TEXT_STRING = 1020
+    RECEIVER_ANTENNA_DESCRIPTOR = 1033
+
+    GALILEO_EPHEMERIS = 1045
 
     SSR_GPS_ORBIT = 1057
     SSR_GPS_CLOCK = 1058
@@ -65,7 +78,7 @@ class Type(IntEnum):
 
 class RtcmMessage:
     _registry = {}
-    _required_methods = ('frombuffer',)
+    _required_methods = ('frombuffer', 'tobuffer')
 
     def __init_subclass__(cls, msg_type: Type, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -98,9 +111,22 @@ class RtcmMessage:
         return instance
 
 
+class ExtendedL1L2Gps(RtcmMessage, msg_type=Type.EXTENDED_L1_L2_GPS):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def frombuffer(self, buff):
+        raise NotImplementedError
+
+    def tobuffer(self):
+        raise NotImplementedError
+
 class GpsEphemeris(RtcmMessage, msg_type=Type.GPS_EPHEMERIDES):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def frombuffer(self, buff):
+        raise NotImplementedError
+
+    def tobuffer(self):
         raise NotImplementedError
