@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from enum import IntEnum
+from bitstring import BitStream
 
 
 class Type(IntEnum):
@@ -78,7 +80,7 @@ class Type(IntEnum):
 
 class RtcmMessage:
     _registry = {}
-    _required_methods = ('frombuffer', 'tobuffer')
+    _required_methods = ('from_buffer', 'to_buffer')
 
     def __init_subclass__(cls, msg_type: Type, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -111,22 +113,47 @@ class RtcmMessage:
         return instance
 
 
+class SmothingInterval(IntEnum):
+    NO_SMOTHING = 0
+    LOWER_30 = 1
+    UNLIMITED = 7
+
+@dataclass
+class GpsRtkHeader:
+    msg_number: Type
+    station_id: int
+    gps_epoch: int
+    synchronous_gnss: bool
+    nr_gps_sat: int
+    divergence_free_smothing: bool
+    smothing_interval = int
+
+    def from_bit_stream(self, stream: BitStream):
+        self.msg_number = Type(stream.read('uint:12'))
+        self.station_id = stream.read('uint:12')
+        self.gps_epoch = stream.read('uint:30')
+        self.synchronous_gnss = bool(stream.read('uint:1'))
+        self.nr_gps_sat = stream.read('uint:5')
+        self.divergence_free_smothing = bool(stream.read('uint:1'))
+        self.smothing_interval = SmothingInterval(stream.read('uint:3'))
+
+
 class ExtendedL1L2Gps(RtcmMessage, msg_type=Type.EXTENDED_L1_L2_GPS):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def frombuffer(self, buff):
+    def from_buffer(self, buff):
         raise NotImplementedError
 
-    def tobuffer(self):
+    def to_buffer(self):
         raise NotImplementedError
 
 class GpsEphemeris(RtcmMessage, msg_type=Type.GPS_EPHEMERIDES):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def frombuffer(self, buff):
+    def from_buffer(self, buff):
         raise NotImplementedError
 
-    def tobuffer(self):
+    def to_buffer(self):
         raise NotImplementedError

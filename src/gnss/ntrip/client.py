@@ -62,11 +62,11 @@ class Client:
                 verify=self.ssl,
                 params=params) as resp:
             resp.raise_for_status()
-            try:
+            if "Content-Type" in resp.headers:
                 if resp.headers["Content-Type"] != "gnss/sourcetable":
                     raise RuntimeError(
                         "invalid content-type {resp.headers['Content-Type']}")
-            except KeyError:
+            else:
                 raise RuntimeError("unable to find Content-Type")
 
             for line in resp.iter_lines():
