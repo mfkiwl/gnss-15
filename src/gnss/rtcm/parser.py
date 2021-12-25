@@ -1,27 +1,25 @@
+from enum import IntEnum
+
+from bitstring import ConstBitStream
+
+
 PREAMBLE = 0xd3
-
-class State(IntEnum):
-    """
-    Parser state
-    """
-    NOSYNC = 0
-    SYNC1 = 1
-    MESSAGE = 2
-
+BUFFER_SIZE = 2048
 
 class Parser:
-    def __init__(self):
+    def __init__(self, stream=None):
         self._callbacks = {}
         self.counts = {}
         self.error_count = 0
         self._msg = None
         self._end_of_stream = False
-        self._state = State.NOSYNC
+        self._issync = False
         self._buffer = bytearray()
-        self.break_msg_ids = []
+        self.break_msg_types = []
+        self.stream = stream
 
     def load_stream(self, stream):
-        pass
+        self.stream = stream
 
     def parse(self) -> None:
         """
@@ -35,81 +33,39 @@ class Parser:
                     break
                 self._buffer += buff
 
-            if self._state == State.NOSYNC:
-                index = 0
-                for byte in self._buffer:
-                    index += 1
-                    if byte == SYNC1:
-                        self._state = State.SYNC1
+            if not self._issync:
+                for index, byte in enumerate(self._buffer):
+                    self._issync = byte == PREAMBLE
+                    if self._issync:
                         break
                 self._buffer = self._buffer[index:]
 
-            if self._state == State.SYNC1:
-                byte = self._buffer[0]
-                if byte == SYNC2:
-                    self._state = State.MESSAGE
-                else:
-                    self._state = State.NOSYNC
-                    self.error_count += 1
+            if self._issync:
+                if len(self._buffer) <= 3:
+                    continue
+
+            stream = ConstBitStream(self._buffer[1:3])
+            stream.pos += 14
+            msg_length = stream.read('uint:10')
+
+            if len(self._buffer) < (6 + msg_length):
+                continue
+            crc = self._buffer[3 + msg_length: 6 + msg_length]
+            cmp_crc = self.compute_crc(self._buffer[: 3 + msg_length])
+            if cmp_crc != crc:
                 self._buffer = self._buffer[1:]
+                self._issync = False
+                continue
 
-            if self._state == State.MESSAGE:
-                if len(self._buffer) <= 4:
-                    continue
+            self.parse_message(self._buffer[3: 3 + msg_length])
+            self._buffer = self._buffer[6 + msg_length:]
+            self.issync = False
 
-                try:
-                    msg_id = Id(self._buffer[0])
-                    msg_class = Class(self._buffer[1])
-                except ValueError:
-                    self.error_count += 1
-                    self._state = State.NOSYNC
-                    continue
+            if self._msg.type in self.break_msg_types:
+                break
 
-                try:
-                    msg_name = SbgMessage.get_name(msg_id)
-                    try:
-                        self.counts[msg_name] += 1
-                    except KeyError:
-                        self.counts[msg_name] = 1
-                except NotImplementedError:
-                    self._state = State.NOSYNC
-                    continue
+    def compute_crc(self, buff: bytearray) -> bytearray:
+        return bytearray("0x00")
 
-                if msg_id not in self._required_msg_ids:
-                    self._state = State.NOSYNC
-                    continue
-
-                payload_size = np.frombuffer(
-                    self._buffer[2:4],
-                    dtype=np.dtype(np.uint16).newbyteorder(self.endianness))[0]
-
-                if payload_size > MAX_PAYLOAD_SIZE:
-                    self.error_count += 1
-                    self._state = State.NOSYNC
-                    continue
-
-                msg_size = 4 + payload_size + 2
-                crc = np.frombuffer(
-                    self._buffer[msg_size - 2:msg_size],
-                    dtype=np.dtype(np.uint16).newbyteorder(self.endianness))[0]
-
-                crc_computed = self._crc_fn(self._buffer[:msg_size - 2])
-
-                if crc != crc_computed:
-                    self.error_count += 1
-                    self._state = State.NOSYNC
-                    continue
-
-                payload = self._buffer[4:payload_size + 4]
-                self.parse_payload(msg_id, msg_class, payload)
-                self._buffer = self._buffer[msg_size:]
-                self._state = State.NOSYNC
-
-                if msg_id in self._callbacks:
-                    for callback in self._callbacks[msg_id]:
-                        callback(self._msg)
-
-                if self._msg.msg_id in self.break_msg_ids:
-                    break
-
-
+    def parse_message(self, buff: bytearray) -> None:
+        pass
