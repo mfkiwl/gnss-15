@@ -1,4 +1,5 @@
 from enum import IntEnum
+from io import BytesIO
 
 from bitstring import ConstBitStream
 
@@ -7,7 +8,7 @@ PREAMBLE = 0xd3
 BUFFER_SIZE = 2048
 
 class Parser:
-    def __init__(self, stream=None):
+    def __init__(self, stream: BytesIO = None):
         self._callbacks = {}
         self.counts = {}
         self.error_count = 0
@@ -16,9 +17,9 @@ class Parser:
         self._issync = False
         self._buffer = bytearray()
         self.break_msg_types = []
-        self.stream = stream
+        self.load_stream(stream)
 
-    def load_stream(self, stream):
+    def load_stream(self, stream: BytesIO):
         self.stream = stream
 
     def parse(self) -> None:
@@ -40,16 +41,19 @@ class Parser:
                         break
                 self._buffer = self._buffer[index:]
 
-            if self._issync:
-                if len(self._buffer) <= 3:
-                    continue
+            if not self._issync:
+                continue
 
-            stream = ConstBitStream(self._buffer[1:3])
+            if len(self._buffer) <= 3:
+                continue
+
+            stream = ConstBitStream(self._buffer[:3])
             stream.pos += 14
             msg_length = stream.read('uint:10')
 
             if len(self._buffer) < (6 + msg_length):
                 continue
+
             crc = self._buffer[3 + msg_length: 6 + msg_length]
             cmp_crc = self.compute_crc(self._buffer[: 3 + msg_length])
             if cmp_crc != crc:
@@ -65,7 +69,7 @@ class Parser:
                 break
 
     def compute_crc(self, buff: bytearray) -> bytearray:
-        return bytearray("0x00")
+        raise NotImplementedError
 
     def parse_message(self, buff: bytearray) -> None:
-        pass
+        raise NotImplementedError
