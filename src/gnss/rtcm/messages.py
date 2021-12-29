@@ -77,6 +77,7 @@ class Type(IntEnum):
 
     GLONASS_L1_2_CODE_PHASE_BIASES = 1230
 
+
 class RtcmMessage:
     _registry = {}
     _required_methods = ('from_buffer', 'to_buffer')
@@ -124,6 +125,7 @@ class SmothingInterval(IntEnum):
     LOWER_30 = 1
     UNLIMITED = 7
 
+
 class GpsRtkHeader:
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -133,7 +135,6 @@ class GpsRtkHeader:
         self.nr_gps_sat = None
         self.divergence_free_smothing = None
         self.smothing_interval = None
-
 
     def from_bit_stream(self, stream: ConstBitStream):
 
@@ -157,7 +158,6 @@ class ExtendedL1L2Gps(
         self.l1_phaserange = None
         self.lock_time_indicator = None
 
-
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
         msg_number = Type(stream.read('uint:12'))
@@ -173,6 +173,7 @@ class ExtendedL1L2Gps(
 
     def to_buffer(self):
         raise NotImplementedError
+
 
 class BaseAntenna:
     def __init__(self, **kwargs):
@@ -197,9 +198,9 @@ class BaseAntenna:
         self.ecef_x = stream.read('int:38') * 1e-4
         self.oscillator_indicator = bool(stream.read('uint:1'))
         stream.read('uint:1')
-        self.ecef_y = stream.read('int:38')* 1e-4
+        self.ecef_y = stream.read('int:38') * 1e-4
         self.quater_cycle_indicator = stream.read('uint:2')
-        self.ecef_z = stream.read('int:38')* 1e-4
+        self.ecef_z = stream.read('int:38') * 1e-4
 
 
 class ReferenceStationAntenna(
@@ -242,7 +243,6 @@ class ReferenceStationAntennaHeight(
 
     def to_buffer(self):
         raise NotImplementedError
-
 
 
 class GpsEphemeris(RtcmMessage, msg_type=Type.GPS_EPHEMERIDES):
