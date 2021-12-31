@@ -100,7 +100,7 @@ class RtcmMessage:
         cls._registry[msg_type] = cls
         cls.type = msg_type
 
-    def __new__(cls, msg_type: Type = None, **kwargs):
+    def __new__(cls, *, msg_type: Type = None, **kwargs):
         if msg_type is not None:
             if msg_type in cls._registry:
                 subclass = cls._registry[msg_type]
@@ -164,19 +164,22 @@ class ExtendedL1L2Gps(
         RtcmMessage, GpsRtkHeader,
         msg_type=Type.EXTENDED_L1_L2_GPS,
         ):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
-        self.sat_id = None
-        self.l1_code_indicator = None
-        self.l1_pseudorange = None
-        self.l1_phaserange = None
-        self.lock_time_indicator = None
+        if buff is not None:
+            self.from_buffer(buff)
+        else:
+            self.sat_id = None
+            self.l1_code_indicator = None
+            self.l1_pseudorange = None
+            self.l1_phaserange = None
+            self.lock_time_indicator = None
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
         msg_number = Type(stream.read('uint:12'))
         if msg_number != self.type:
-            raise RuntimeError('invalid message number received')
+            raise RuntimeError('invalid message number')
 
         super().from_bit_stream(stream)
         self.sat_id = stream.read('uint:6')
@@ -222,14 +225,16 @@ class ReferenceStationAntenna(
         BaseAntenna,
         msg_type=Type.REFERENCE_STATION_ANTENNA
         ):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
         msg_number = Type(stream.read('uint:12'))
         if msg_number != self.type:
-            raise RuntimeError('invalid message number received')
+            raise RuntimeError('invalid message number')
 
         super().from_stream(stream)
 
@@ -242,15 +247,18 @@ class ReferenceStationAntennaHeight(
         BaseAntenna,
         msg_type=Type.REFERENCE_STATION_ANTENNA_HEIGHT
         ):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
-        self.height = None
+        if buff is not None:
+            self.from_buffer(buff)
+        else:
+            self.height = None
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
         msg_number = Type(stream.read('uint:12'))
         if msg_number != self.type:
-            raise RuntimeError('invalid message number received')
+            raise RuntimeError('invalid message number')
 
         super().from_stream(stream)
         self.height = stream.read('uint:16')
@@ -260,8 +268,10 @@ class ReferenceStationAntennaHeight(
 
 
 class GpsEphemeris(RtcmMessage, msg_type=Type.GPS_EPHEMERIDES):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -271,8 +281,10 @@ class GpsEphemeris(RtcmMessage, msg_type=Type.GPS_EPHEMERIDES):
 
 
 class AntennaDescriptor(RtcmMessage, msg_type=Type.ANTENNA_DESCRIPTOR):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -282,8 +294,10 @@ class AntennaDescriptor(RtcmMessage, msg_type=Type.ANTENNA_DESCRIPTOR):
 
 
 class ExtendedL1l2Glonass(RtcmMessage, msg_type=Type.EXTENDED_L1_L2_GLONASS):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -293,8 +307,10 @@ class ExtendedL1l2Glonass(RtcmMessage, msg_type=Type.EXTENDED_L1_L2_GLONASS):
 
 
 class SystemParameters(RtcmMessage, msg_type=Type.SYSTEM_PARAMETERS):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -304,8 +320,10 @@ class SystemParameters(RtcmMessage, msg_type=Type.SYSTEM_PARAMETERS):
 
 
 class GpsInospheric(RtcmMessage, msg_type=Type.GPS_IONOSPHERIC):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -315,8 +333,10 @@ class GpsInospheric(RtcmMessage, msg_type=Type.GPS_IONOSPHERIC):
 
 
 class GpsGeometric(RtcmMessage, msg_type=Type.GPS_GEOMETRIC):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -328,8 +348,25 @@ class GpsGeometric(RtcmMessage, msg_type=Type.GPS_GEOMETRIC):
 class GpsGeometricIonospheric(
         RtcmMessage,
         msg_type=Type.GPS_GEOMETRIC_INOSPHERIC):
-    def __init__(self, **kwargs):
+    def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
+
+    def from_buffer(self, buff: bytes):
+        raise NotImplementedError
+
+    def to_buffer(self):
+        raise NotImplementedError
+
+
+class ReceiverAntennaDescriptor(
+        RtcmMessage,
+        msg_type=Type.RECEIVER_ANTENNA_DESCRIPTOR):
+    def __init__(self, buff: bytes = None, **kwargs):
+        super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
