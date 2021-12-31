@@ -1,4 +1,4 @@
-from enum import IntEnum
+import functools
 from io import BytesIO
 
 from bitstring import ConstBitStream
@@ -8,6 +8,7 @@ from .messages import RtcmMessage, Type
 
 PREAMBLE = 0xd3
 BUFFER_SIZE = 2048
+
 
 class Parser:
     def __init__(self, stream: BytesIO = None):
@@ -23,6 +24,42 @@ class Parser:
 
     def load_stream(self, stream: BytesIO):
         self.stream = stream
+
+    def callback(self, func):
+        """
+        Callback decorator.
+
+        This decorator can be used to attach a callback function to the parser.
+        Each time a message that match one of the function parameters is parsed
+        the function will be called.
+
+        Raises
+        ---------
+        AttributeError
+            If function parameter are not a RTCM message.
+
+        Warnings
+        ----------
+        The parameter of the decorated function must be annotated as a
+        RTCM message.
+        """
+        @functools.wraps(func)
+        def decorator_callback(func):
+            annotations = func.__annotations__
+            for param_name, param_type in annotations.items():
+                if param_name == 'return':
+                    continue
+
+                if not issubclass(param_type, RtcmMessage):
+                    raise AttributeError(
+                        f"The parameter '{param_name}' is not a RTCM message.")
+                try:
+                    self._callbacks[param_type.type].append(func)
+                except KeyError:
+                    self._callbacks[param_type.type] = [func]
+            return func
+
+        return decorator_callback(func) if func else decorator_callback
 
     def parse(self) -> None:
         """
@@ -67,6 +104,10 @@ class Parser:
             self.parse_message(self._buffer[3: 3 + msg_length])
             self._buffer = self._buffer[6 + msg_length:]
             self.issync = False
+
+            if self.msg.type in self._callbacks:
+                for callback in self._callbacks[self.msg.type]:
+                    callback(self.msg)
 
             if self.msg.type in self.break_msg_types:
                 break

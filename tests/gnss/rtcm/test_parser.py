@@ -4,6 +4,7 @@ from numpy.testing import assert_almost_equal
 import pytest
 
 from gnss.rtcm.parser import Parser, PREAMBLE
+from gnss.rtcm.messages import ReferenceStationAntenna
 
 def test_parse_garbage():
     stream = BytesIO(
@@ -54,8 +55,39 @@ def test_parse_msg_1005():
 
     assert parser.error_count == 0
 
-    msg = parser.msg
+    assert parser.msg.type == 1005
+    assert parser.msg.station_id == 2003
+    assert_almost_equal(parser.msg.ecef_x, 1114104.5999, decimal=4)
+    assert_almost_equal(parser.msg.ecef_y, -4850729.7108, decimal=4)
+    assert_almost_equal(parser.msg.ecef_z, 3975521.4643, decimal=4)
 
+
+def test_parser_callback():
+    stream = BytesIO(bytes(
+        [0xd3, 0x00, 0x13, 0x3e, 0xd7, 0xd3, 0x02, 0x02, 0x98, 0x0e, 0xde,
+         0xef, 0x34, 0xb4, 0xbd, 0x62, 0xac, 0x09, 0x41, 0x98, 0x6f, 0x33,
+         0x36, 0x0b, 0x98]))
+
+    parser = Parser(stream)
+
+    parsed_msgs = []
+
+    @parser.callback
+    def add_msg(msg: ReferenceStationAntenna):
+        parsed_msgs.append(msg)
+
+    parser.parse()
+
+    assert parser.error_count == 0
+
+    assert parser.msg.type == 1005
+    assert parser.msg.station_id == 2003
+    assert_almost_equal(parser.msg.ecef_x, 1114104.5999, decimal=4)
+    assert_almost_equal(parser.msg.ecef_y, -4850729.7108, decimal=4)
+    assert_almost_equal(parser.msg.ecef_z, 3975521.4643, decimal=4)
+
+    assert len(parsed_msgs) == 1
+    msg = parsed_msgs.pop()
     assert msg.type == 1005
     assert msg.station_id == 2003
     assert_almost_equal(msg.ecef_x, 1114104.5999, decimal=4)
