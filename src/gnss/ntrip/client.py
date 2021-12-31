@@ -65,7 +65,8 @@ class Client:
             if "Content-Type" in resp.headers:
                 if resp.headers["Content-Type"] != "gnss/sourcetable":
                     raise RuntimeError(
-                        "invalid content-type {resp.headers['Content-Type']}")
+                        "invalid content-type: "
+                        f"{resp.headers['Content-Type']}")
             else:
                 raise RuntimeError("unable to find Content-Type")
 
@@ -116,7 +117,12 @@ class Client:
             verify=self.ssl,
             timeout=self.timeout)
         if self.response.headers["Content-Type"] != "gnss/data":
-            raise RuntimeError("invalid content-type")
+            if self.response.headers["Content-Type"] == "gnss/sourcetable":
+                raise ValueError("Invalid mountpoint")
+            else:
+                raise RuntimeError(
+                    "invalid content-type: "
+                    f"{self.response.headers['Content-Type']}")
 
     def close(self):
         if not self.isclosed():
