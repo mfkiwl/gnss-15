@@ -68,10 +68,10 @@ class Parser:
         while True:
             if len(self._buffer) < BUFFER_SIZE:
                 buff = self.stream.read(BUFFER_SIZE)
-                if not buff:
+                if buff:
+                    self._buffer += buff
+                else:
                     self._end_of_stream = True
-                    break
-                self._buffer += buff
 
             if not self._issync:
                 for index, byte in enumerate(self._buffer):
@@ -81,17 +81,26 @@ class Parser:
                 self._buffer = self._buffer[index:]
 
             if not self._issync:
-                continue
+                if self._end_of_stream:
+                    break
+                else:
+                    continue
 
             if len(self._buffer) <= 3:
-                continue
+                if self._end_of_stream:
+                    break
+                else:
+                    continue
 
             stream = ConstBitStream(self._buffer[:3])
             stream.pos += 14
             msg_length = stream.read('uint:10')
 
             if len(self._buffer) < (6 + msg_length):
-                continue
+                if self._end_of_stream:
+                    break
+                else:
+                    continue
 
             crc = self._buffer[3 + msg_length: 6 + msg_length]
             computed_crc = Crc24Q.hash(self._buffer[: 3 + msg_length])
@@ -101,9 +110,20 @@ class Parser:
                 self.error_count += 1
                 continue
 
-            self.parse_message(self._buffer[3: 3 + msg_length])
-            self._buffer = self._buffer[6 + msg_length:]
-            self.issync = False
+            try:
+                self.parse_message(self._buffer[3: 3 + msg_length])
+            except (ValueError, NotImplementedError) as e:
+                continue
+
+            finally:
+                self._buffer = self._buffer[6 + msg_length:]
+                self.issync = False
+
+            msg_name = self.msg.name
+            if msg_name in self.counts:
+                self.counts[msg_name] += 1
+            else:
+                self.counts[msg_name] = 0
 
             if self.msg.type in self._callbacks:
                 for callback in self._callbacks[self.msg.type]:
