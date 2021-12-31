@@ -108,6 +108,9 @@ class Client:
             self.outstream.write(data)
         return data
 
+    def read(self, nrbytes: int):
+        return self.get_data(nrbytes)
+
     def connect(self):
         url = f"{self.caster_url}:{self.port}/{self.mountpoint}"
         self.response = requests.get(

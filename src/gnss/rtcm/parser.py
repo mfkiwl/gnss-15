@@ -20,10 +20,15 @@ class Parser:
         self._issync = False
         self._buffer = bytearray()
         self.break_msg_types = []
-        self.load_stream(stream)
+        self.wait_for_stream = False
+        if stream is not None:
+            self.load_stream(stream)
 
-    def load_stream(self, stream: BytesIO):
+    def load_stream(self, stream, wait_for_stream: bool = False):
+        if not hasattr(stream, 'read') or not callable(stream.read):
+            raise AttributeError("missing read method")
         self.stream = stream
+        self.wait_for_stream = wait_for_stream
 
     def callback(self, func):
         """
@@ -70,7 +75,7 @@ class Parser:
                 buff = self.stream.read(BUFFER_SIZE)
                 if buff:
                     self._buffer += buff
-                else:
+                elif not self.wait_for_stream:
                     self._end_of_stream = True
 
             if not self._issync:
@@ -112,7 +117,7 @@ class Parser:
 
             try:
                 self.parse_message(self._buffer[3: 3 + msg_length])
-            except (ValueError, NotImplementedError) as e:
+            except (ValueError, NotImplementedError):
                 continue
 
             finally:
