@@ -1,5 +1,6 @@
 from io import BytesIO
 from numpy.testing import assert_almost_equal
+import pytest
 
 from gnss.rtcm.messages import RtcmMessage
 from gnss.rtcm.messages import (
@@ -41,6 +42,7 @@ def test_ref_antenna_height():
     assert msg.height == 0
 
 
+@pytest.mark.skip(reason="no implemented")
 def test_receiver_antenna_descriptor():
     buff = bytes(b'@\x90\x00\x00\x00\x00\x08TPS OEM1\x124.7 Nov,23,2017 p6\x00')
     msg = ReceiverAntennaDescriptor(buff=buff)

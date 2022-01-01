@@ -79,6 +79,9 @@ class Type(IntEnum):
 
 
 class RtcmMessage:
+    """
+    RTCM message interface.
+    """
     _registry = {}
     _required_methods = ('from_buffer', 'to_buffer')
 
@@ -113,8 +116,9 @@ class RtcmMessage:
 
         return instance
 
-    def __init__(self, **kwargs):
-        pass
+    def __init__(self, msg_type: Type = None, **kwargs):
+        if msg_type is not None:
+            self.type = msg_type
 
     def from_buffer(self, buff: bytes):
         raise NotImplementedError
@@ -192,20 +196,36 @@ class ExtendedL1L2Gps(
         raise NotImplementedError
 
 
-class BaseAntenna:
-    def __init__(self, **kwargs):
-        self.station_id = None
-        self.gps_indicator = None
-        self.glonass_indicator = None
-        self.galileo_indicator = None
-        self.station_indicator = None
-        self.ecef_x = None
-        self.oscillator_indicator = None
-        self.ecef_y = None
-        self.quater_cycle_indicator = None
-        self.ecef_z = None
+class ReferenceStationAntenna(
+        RtcmMessage,
+        msg_type=Type.REFERENCE_STATION_ANTENNA
+        ):
+    def __init__(self, buff: bytes = None, **kwargs):
+        super().__init__(**kwargs)
+        if buff is not None:
+            self.from_buffer(buff)
+        else:
+            self.station_id = None
+            self.gps_indicator = None
+            self.glonass_indicator = None
+            self.galileo_indicator = None
+            self.station_indicator = None
+            self.ecef_x = None
+            self.oscillator_indicator = None
+            self.ecef_y = None
+            self.quater_cycle_indicator = None
+            self.ecef_z = None
 
-    def from_stream(self, stream):
+
+    def from_buffer(self, buff: bytes):
+        stream = ConstBitStream(buff)
+        self.from_stream(stream)
+
+    def from_stream(self, stream: ConstBitStream):
+        msg_number = Type(stream.read('uint:12'))
+        if msg_number != self.type:
+            raise RuntimeError('invalid message number')
+
         self.station_id = stream.read('uint:12')
         stream.read('uint:6')
         self.gps_indicator = bool(stream.read('uint:1'))
@@ -219,32 +239,12 @@ class BaseAntenna:
         self.quater_cycle_indicator = stream.read('uint:2')
         self.ecef_z = stream.read('int:38') * 1e-4
 
-
-class ReferenceStationAntenna(
-        RtcmMessage,
-        BaseAntenna,
-        msg_type=Type.REFERENCE_STATION_ANTENNA
-        ):
-    def __init__(self, buff: bytes = None, **kwargs):
-        super().__init__(**kwargs)
-        if buff is not None:
-            self.from_buffer(buff)
-
-    def from_buffer(self, buff: bytes):
-        stream = ConstBitStream(buff)
-        msg_number = Type(stream.read('uint:12'))
-        if msg_number != self.type:
-            raise RuntimeError('invalid message number')
-
-        super().from_stream(stream)
-
     def to_buffer(self):
         raise NotImplementedError
 
 
 class ReferenceStationAntennaHeight(
-        RtcmMessage,
-        BaseAntenna,
+        ReferenceStationAntenna,
         msg_type=Type.REFERENCE_STATION_ANTENNA_HEIGHT
         ):
     def __init__(self, buff: bytes = None, **kwargs):
@@ -256,10 +256,6 @@ class ReferenceStationAntennaHeight(
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
-        msg_number = Type(stream.read('uint:12'))
-        if msg_number != self.type:
-            raise RuntimeError('invalid message number')
-
         super().from_stream(stream)
         self.height = stream.read('uint:16')
 
