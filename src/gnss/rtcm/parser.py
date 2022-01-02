@@ -10,19 +10,20 @@ PREAMBLE = 0xd3
 BUFFER_SIZE = 2048
 
 
+class IncompleteMessageError(RuntimeError):
+    pass
+
 class Parser:
-    def __init__(self, stream: BytesIO = None):
+    def __init__(self, stream: BytesIO = None, wait_for_stream: bool = False):
         self._callbacks = {}
         self.counts = {}
         self.error_count = 0
         self.msg = None
-        self._end_of_stream = False
         self._issync = False
         self._buffer = bytearray()
         self.break_msg_types = []
-        self.wait_for_stream = False
         if stream is not None:
-            self.load_stream(stream)
+            self.load_stream(stream, wait_for_stream)
 
     def load_stream(self, stream, wait_for_stream: bool = False):
         if not hasattr(stream, 'read') or not callable(stream.read):
@@ -66,52 +67,68 @@ class Parser:
 
         return decorator_callback(func) if func else decorator_callback
 
-    def parse(self) -> None:
+    def iter_messages(self, *break_msg_types):
+        if break_msg_types:
+            self.break_msg_types = []
+            for msg_type in break_msg_types:
+                if issubclass(msg_type, RtcmMessage):
+                    self.break_msg_types.append(msg_type.type)
+                else:
+                    raise AttributeError(f"{msg_type} is not a SBG message.")
+        else:
+            self.break_msg_types = RtcmMessage.get_types()
+        while True:
+            msg = self.parse()
+            if msg is not None:
+                yield msg
+            else:
+                break
+
+    def parse(self):
         """
         Parse RTCM binary messages.
         """
+        empty_stream = False
+        msg_found = False
         while True:
             if len(self._buffer) < BUFFER_SIZE:
                 buff = self.stream.read(BUFFER_SIZE)
                 if buff:
                     self._buffer += buff
-                elif not self.wait_for_stream:
-                    self._end_of_stream = True
-
-            if not self._issync:
-                for index, byte in enumerate(self._buffer):
-                    self._issync = byte == PREAMBLE
-                    if self._issync:
-                        break
-                self._buffer = self._buffer[index:]
-
-            if not self._issync:
-                if self._end_of_stream:
-                    break
+                elif self.wait_for_stream:
+                    continue
                 else:
+                    empty_stream = True
+
+            if not msg_found:
+                try:
+                    index = self._buffer.index(PREAMBLE)
+                    self._buffer = self._buffer[index:]
+                    msg_found = True
+                except ValueError:
+                    if not self.wait_for_stream:
+                        return
                     continue
 
             if len(self._buffer) <= 3:
-                if self._end_of_stream:
-                    break
-                else:
-                    continue
+                if empty_stream:
+                    raise IncompleteMessageError
+                continue
 
             stream = ConstBitStream(self._buffer[:3])
             stream.pos += 14
             msg_length = stream.read('uint:10')
 
             if len(self._buffer) < (6 + msg_length):
-                if self._end_of_stream:
-                    break
-                else:
-                    continue
+                if empty_stream:
+                    raise IncompleteMessageError
+                continue
 
             crc = self._buffer[3 + msg_length: 6 + msg_length]
             computed_crc = Crc24Q.hash(self._buffer[: 3 + msg_length])
             if computed_crc != crc:
                 self._buffer = self._buffer[1:]
-                self._issync = False
+                msg_found = False
                 self.error_count += 1
                 continue
 
@@ -119,10 +136,9 @@ class Parser:
                 self.parse_message(self._buffer[3: 3 + msg_length])
             except (ValueError, NotImplementedError):
                 continue
-
             finally:
                 self._buffer = self._buffer[6 + msg_length:]
-                self.issync = False
+                msg_found = False
 
             msg_name = self.msg.name
             if msg_name in self.counts:
@@ -135,7 +151,7 @@ class Parser:
                     callback(self.msg)
 
             if self.msg.type in self.break_msg_types:
-                break
+                return self.msg
 
     def parse_message(self, buff: bytes) -> None:
         stream = ConstBitStream(buff[:2])
