@@ -214,7 +214,7 @@ class ReferenceStationAntenna(
             self.ecef_x = None
             self.oscillator_indicator = None
             self.ecef_y = None
-            self.quater_cycle_indicator = None
+            self.quarter_cycle_indicator = None
             self.ecef_z = None
 
 
@@ -237,7 +237,7 @@ class ReferenceStationAntenna(
         self.oscillator_indicator = bool(stream.read('uint:1'))
         stream.read('uint:1')
         self.ecef_y = stream.read('int:38') * 1e-4
-        self.quater_cycle_indicator = stream.read('uint:2')
+        self.quarter_cycle_indicator = stream.read('uint:2')
         self.ecef_z = stream.read('int:38') * 1e-4
 
     def to_buffer(self):

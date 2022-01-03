@@ -21,7 +21,7 @@ def test_ref_antenna():
     assert_almost_equal(msg.ecef_x, -4007969.5926, decimal=4)
     assert not msg.oscillator_indicator
     assert_almost_equal(msg.ecef_y, 3524983.62340, decimal=4)
-    assert msg.quater_cycle_indicator == 0
+    assert msg.quarter_cycle_indicator == 0
     assert_almost_equal(msg.ecef_z, -3480800.6520, decimal=4)
 
 
@@ -37,7 +37,7 @@ def test_ref_antenna_height():
     assert_almost_equal(msg.ecef_x, -4007969.5926, decimal=4)
     assert not msg.oscillator_indicator
     assert_almost_equal(msg.ecef_y, 3524983.62340, decimal=4)
-    assert msg.quater_cycle_indicator == 0
+    assert msg.quarter_cycle_indicator == 0
     assert_almost_equal(msg.ecef_z, -3480800.6520, decimal=4)
     assert msg.height == 0
 
