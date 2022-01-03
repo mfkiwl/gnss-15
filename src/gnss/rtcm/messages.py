@@ -12,7 +12,7 @@ class Type(IntEnum):
 
     GPS_IONOSPHERIC = 1015
     GPS_GEOMETRIC = 1016
-    GPS_GEOMETRIC_INOSPHERIC = 1017
+    GPS_GEOMETRIC_IONOSPHERIC = 1017
     GPS_EPHEMERIDES = 1019
     GLONASS_EPHEMERIDES = 1020
 
@@ -85,23 +85,23 @@ class RtcmMessage:
     _registry = {}
     _required_methods = ('from_buffer', 'to_buffer')
 
-    def __init_subclass__(cls, msg_type: Type, **kwargs):
+    def __init_subclass__(cls, msg_type: Type = None, **kwargs):
         super().__init_subclass__(**kwargs)
-        for required_method in cls._required_methods:
-            if hasattr(super(cls, cls), required_method):
-                subclass_method = getattr(cls, required_method)
-                parentclass_method = getattr(RtcmMessage, required_method)
-                if subclass_method == parentclass_method:
+        if msg_type is not None:
+            for required_method in cls._required_methods:
+                if hasattr(super(cls, cls), required_method):
+                    subclass_method = getattr(cls, required_method)
+                    parent_class_method = getattr(RtcmMessage, required_method)
+                    if subclass_method == parent_class_method:
+                        raise NotImplementedError(
+                            (f"method {required_method} "
+                             + f"is not override by {cls.__name__}"))
+                elif not hasattr(cls, required_method):
                     raise NotImplementedError(
                         (f"method {required_method} "
-                         + f"is not override by {cls.__name__}"))
-            elif not hasattr(cls, required_method):
-                raise NotImplementedError(
-                    (f"method {required_method} "
-                     + f"is not implemented in {cls.__name__}"))
-
-        cls._registry[msg_type] = cls
-        cls.type = msg_type
+                         + f"is not implemented in {cls.__name__}"))
+            cls._registry[msg_type] = cls
+            cls.type = msg_type
 
     def __new__(cls, *, msg_type: Type = None, **kwargs):
         if msg_type is not None:
@@ -147,14 +147,12 @@ class RtcmMessage:
 
 
 class GpsRtkHeader:
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.station_id = None
-        self.gps_epoch = None
-        self.synchronous_gnss = None
-        self.nr_gps_sat = None
-        self.divergence_free_smothing = None
-        self.smothing_interval = None
+    station_id: int
+    gps_epoch: int
+    synchronous_gnss: bool
+    nr_gps_sat: int
+    divergence_free_smoothing: bool
+    smoothing_interval: int
 
     def from_bit_stream(self, stream: ConstBitStream):
         self.station_id = stream.read('uint:12')
@@ -169,16 +167,16 @@ class ExtendedL1L2Gps(
         RtcmMessage, GpsRtkHeader,
         msg_type=Type.EXTENDED_L1_L2_GPS,
         ):
+    sat_id: int
+    l1_code_indicator: bool
+    l1_pseudorange: float
+    l1_phaserange: float
+    lock_time_indicator: int
+
     def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
         if buff is not None:
             self.from_buffer(buff)
-        else:
-            self.sat_id = None
-            self.l1_code_indicator = None
-            self.l1_pseudorange = None
-            self.l1_phaserange = None
-            self.lock_time_indicator = None
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
@@ -201,22 +199,21 @@ class ReferenceStationAntenna(
         RtcmMessage,
         msg_type=Type.REFERENCE_STATION_ANTENNA
         ):
+    station_id: int
+    gps_indicator: bool
+    glonass_indicator: bool
+    galileo_indicator: bool
+    station_indicator: bool
+    ecef_x: float
+    oscillator_indicator: bool
+    ecef_y: float
+    quarter_cycle_indicator: int
+    ecef_z: float
+
     def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
         if buff is not None:
             self.from_buffer(buff)
-        else:
-            self.station_id = None
-            self.gps_indicator = None
-            self.glonass_indicator = None
-            self.galileo_indicator = None
-            self.station_indicator = None
-            self.ecef_x = None
-            self.oscillator_indicator = None
-            self.ecef_y = None
-            self.quarter_cycle_indicator = None
-            self.ecef_z = None
-
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
@@ -248,12 +245,12 @@ class ReferenceStationAntennaHeight(
         ReferenceStationAntenna,
         msg_type=Type.REFERENCE_STATION_ANTENNA_HEIGHT
         ):
+    height: int
+
     def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
         if buff is not None:
             self.from_buffer(buff)
-        else:
-            self.height = None
 
     def from_buffer(self, buff: bytes):
         stream = ConstBitStream(buff)
@@ -344,7 +341,7 @@ class GpsGeometric(RtcmMessage, msg_type=Type.GPS_GEOMETRIC):
 
 class GpsGeometricIonospheric(
         RtcmMessage,
-        msg_type=Type.GPS_GEOMETRIC_INOSPHERIC):
+        msg_type=Type.GPS_GEOMETRIC_IONOSPHERIC):
     def __init__(self, buff: bytes = None, **kwargs):
         super().__init__(**kwargs)
         if buff is not None:
