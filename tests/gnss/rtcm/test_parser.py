@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from gnss.rtcm.parser import IncompleteMessageError, Parser, PREAMBLE
+from gnss.rtcm.parser import Parser, PREAMBLE
 from gnss.rtcm.messages import ReferenceStationAntenna, ExtendedL1L2Gps
 
 
@@ -15,7 +15,7 @@ def test_parse_garbage():
     parser.parse()
 
 
-@pytest.mark.xfail(reason=IncompleteMessageError)
+@pytest.mark.xfail(reason=RuntimeError)
 def test_parse_preamble():
     stream = BytesIO(bytes([0x01, 0x02, PREAMBLE, 0x03, 0x01, 0x02, 0x03]))
     parser = Parser(stream)
@@ -39,7 +39,7 @@ def test_parse_msg():
     assert parser.error_count == 0
 
 
-def test_parse_msg_1005():
+def test_parse_msg_reference_station_antenna():
     stream = BytesIO(bytes(
         [0xd3, 0x00, 0x13, 0x3e, 0xd7, 0xd3, 0x02, 0x02, 0x98, 0x0e, 0xde,
          0xef, 0x34, 0xb4, 0xbd, 0x62, 0xac, 0x09, 0x41, 0x98, 0x6f, 0x33,
@@ -50,7 +50,7 @@ def test_parse_msg_1005():
 
     assert parser.error_count == 0
 
-    assert parser.msg.type == 1005
+    assert isinstance(parser.msg, ReferenceStationAntenna)
     assert parser.msg.station_id == 2003
     assert_almost_equal(parser.msg.ecef_x, 1114104.5999, decimal=4)
     assert_almost_equal(parser.msg.ecef_y, -4850729.7108, decimal=4)
@@ -97,6 +97,7 @@ def test_parse_rtcm_file():
         parser.parse()
     assert parser.error_count == 0
 
+
 def test_iter_messages():
     binary_file = os.path.join(os.path.dirname(__file__), 'rtcm_data.bin')
     with open(binary_file, 'rb') as stream:
@@ -104,4 +105,5 @@ def test_iter_messages():
         for i, msg in enumerate(parser.iter_messages(ExtendedL1L2Gps)):
             assert isinstance(msg, ExtendedL1L2Gps)
     assert i == 6
+    assert parser.counts[ExtendedL1L2Gps.get_name()] == i
     assert parser.error_count == 0

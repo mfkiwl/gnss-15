@@ -137,7 +137,8 @@ class RtcmMessage:
         return cls._registry[msg_type]
 
     @classmethod
-    def get_name(cls, msg_type: Type):
+    def get_name(cls, msg_type: Type = None):
+        msg_type = cls.type if msg_type is None else msg_type
         return cls.get_class(msg_type).__name__
 
     @property

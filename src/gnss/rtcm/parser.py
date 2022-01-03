@@ -10,9 +10,6 @@ PREAMBLE = 0xd3
 BUFFER_SIZE = 2048
 
 
-class IncompleteMessageError(RuntimeError):
-    pass
-
 class Parser:
     def __init__(self, stream: BytesIO = None, wait_for_stream: bool = False):
         self._callbacks = {}
@@ -112,7 +109,7 @@ class Parser:
 
             if len(self._buffer) <= 3:
                 if empty_stream:
-                    raise IncompleteMessageError
+                    raise RuntimeError("incomplete message")
                 continue
 
             stream = ConstBitStream(self._buffer[:3])
@@ -121,7 +118,7 @@ class Parser:
 
             if len(self._buffer) < (6 + msg_length):
                 if empty_stream:
-                    raise IncompleteMessageError
+                    raise RuntimeError("incomplete message")
                 continue
 
             crc = self._buffer[3 + msg_length: 6 + msg_length]
