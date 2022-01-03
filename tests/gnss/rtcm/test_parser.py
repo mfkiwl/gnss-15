@@ -15,7 +15,7 @@ def test_parse_garbage():
     parser.parse()
 
 
-@pytest.mark.xfail(reason=RuntimeError)
+@pytest.mark.xfail(raises=RuntimeError)
 def test_parse_preamble():
     stream = BytesIO(bytes([0x01, 0x02, PREAMBLE, 0x03, 0x01, 0x02, 0x03]))
     parser = Parser(stream)

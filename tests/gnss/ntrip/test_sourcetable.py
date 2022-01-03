@@ -9,7 +9,7 @@ from gnss.ntrip.sourcetable import get_headers, query_to_string
     [("CAS", CAS_HEADERS),
      ("NET", NET_HEADERS),
      ("STR", STR_HEADERS),
-     pytest.param("unknown", [], marks=pytest.mark.xfail(reason=ValueError))])
+     pytest.param("unknown", [], marks=pytest.mark.xfail(raises=ValueError))])
 def test_get_headers(type_, headers):
     computed_headers = get_headers(type_)
     assert computed_headers == headers
